@@ -1,0 +1,32 @@
+---
+apiVersion: v2
+name: loki-stack
+description: Helm chart for Grafana Loki stack in simple mode
+type: application
+appVersion: 2.6.1
+version: 2.16.0
+home: https://github.com/zuberahmed1987/loki-logstash-syslog
+maintainers:
+  - name: zuberahmed1987
+sources:
+  - https://github.com/grafana/loki
+  - https://grafana.com/oss/loki/
+  - https://grafana.com/docs/loki/latest/
+icon: https://grafana.com/docs/loki/latest/logo_and_name.png
+dependencies:
+  - name: "loki"
+    condition: loki.enabled
+    repository: "https://grafana.github.io/helm-charts"
+    version: "^2.16.0"
+  - name: "promtail"
+    condition: promtail.enabled
+    repository: "https://grafana.github.io/helm-charts"
+    version: "^6.7.4"
+  - name: "filebeat"
+    condition: filebeat.enabled
+    version: "~7.17.8"
+    repository:  "https://helm.elastic.co"
+  - name: "logstash"
+    condition: logstash.enabled
+    version: "~7.17.8"
+    repository:  "https://helm.elastic.co"

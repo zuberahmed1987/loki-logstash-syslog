@@ -1,0 +1,308 @@
+loki:
+  enabled: true
+  replicas: 1
+  fullnameOverride: loki
+  config:
+    # existingSecret:
+    auth_enabled: false
+    ingester:
+      chunk_idle_period: 3m
+      chunk_block_size: 262144
+      chunk_retain_period: 1m
+      max_transfer_retries: 0
+      wal:
+        dir: /data/loki/wal
+      lifecycler:
+        ring:
+          replication_factor: 1
+
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      max_entries_limit_per_query: 5000
+    schema_config:
+      configs:
+      - from: 2020-10-24
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/boltdb-shipper-active
+        cache_location: /data/loki/boltdb-shipper-cache
+        cache_ttl: 24h         # Can be increased for faster performance over longer query periods, uses more disk space
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+      #s3:
+      #  s3: null
+      #  endpoint: null
+      #  region: null
+      #  secretAccessKey: null
+      #  accessKeyId: null
+      #  s3ForcePathStyle: false
+      #  insecure: false
+      #  http_config: {}
+      #gcs:
+      #  chunkBufferSize: 0
+      #  requestTimeout: "0s"
+      #  enableHttp2: true
+      #azure:
+      #  accountName: null
+      #  accountKey: null
+      #  useManagedIdentity: false
+      #  useFederatedToken: false
+      #  userAssignedId: null
+      #  requestTimeout: null
+    chunk_store_config:
+      max_look_back_period: 0s
+    table_manager:
+      retention_deletes_enabled: false
+      retention_period: 0s
+    compactor:
+      working_directory: /data/loki/boltdb-shipper-compactor
+      shared_store: filesystem
+  # Needed for Alerting: https://grafana.com/docs/loki/latest/rules/
+  # This is just a simple example, for more details: https://grafana.com/docs/loki/latest/configuration/#ruler_config
+  #  ruler:
+  #    storage:
+  #      type: local
+  #      local:
+  #        directory: /rules
+  #    rule_path: /tmp/scratch
+  #    alertmanager_url: http://alertmanager.svc.namespace:9093
+  #    ring:
+  #      kvstore:
+  #        store: inmemory
+  #    enable_api: true
+
+  ingress:
+    enabled: false
+    # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+    # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+    # ingressClassName: nginx
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - host: chart-example.local
+        paths: []
+    tls: []
+    #  - secretName: chart-example-tls
+    #    hosts:
+    #      - chart-example.local
+
+  affinity: {}
+  nodeSelector: {}
+  tolerations: []
+
+  extraArgs: {}
+    # log.level: debug
+  
+  persistence:
+    enabled: false
+    accessModes:
+    - ReadWriteOnce
+    size: 10Gi
+    # storageClassName:
+    # selector:
+    #   matchLabels:
+    #     app.kubernetes.io/name: loki
+    # subPath: ""
+    # existingClaim:
+
+  serviceMonitor:
+    enabled: false
+    interval: ""
+    additionalLabels: {}
+    annotations: {}
+    # scrapeTimeout: 10s
+    # path: /metrics
+    scheme: null
+    tlsConfig: {}
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+    #  namespace:
+      rules: []
+      #  Some examples from https://awesome-prometheus-alerts.grep.to/rules.html#loki
+      #  - alert: LokiProcessTooManyRestarts
+      #    expr: changes(process_start_time_seconds{job=~"loki"}[15m]) > 2
+      #    for: 0m
+      #    labels:
+      #      severity: warning
+      #    annotations:
+      #      summary: Loki process too many restarts (instance {{ $labels.instance }})
+      #      description: "A loki process had too many restarts (target {{ $labels.instance }})\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestErrors
+      #    expr: 100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[1m])) by (namespace, job, route) / sum(rate(loki_request_duration_seconds_count[1m])) by (namespace, job, route) > 10
+      #    for: 15m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request errors (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} and {{ $labels.route }} are experiencing errors\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestPanic
+      #    expr: sum(increase(loki_panic_total[10m])) by (namespace, job) > 0
+      #    for: 5m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request panic (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} is experiencing {{ printf \"%.2f\" $value }}% increase of panics\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestLatency
+      #    expr: (histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket{route!~"(?i).*tail.*"}[5m])) by (le)))  > 1
+      #    for: 5m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request latency (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} {{ $labels.route }} is experiencing {{ printf \"%.2f\" $value }}s 99th percentile latency\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+  # Specify Loki Alerting rules based on this documentation: https://grafana.com/docs/loki/latest/rules/
+  # When specified, you also need to add a ruler config section above. An example is shown in the rules docs.
+  alerting_groups: []
+  #  - name: example
+  #    rules:
+  #    - alert: HighThroughputLogStreams
+  #      expr: sum by(container) (rate({job=~"loki-dev/.*"}[1m])) > 1000
+  #      for: 2m
+
+promtail:
+  enabled: true
+  # ServiceMonitor configuration
+  serviceMonitor:
+    enabled: false
+    labels: {}
+    interval: null
+    scrapeTimeout: null
+  nodeSelector: {}
+  affinity: {}
+  # -- Tolerations for pods. By default, pods will be scheduled on master/control-plane nodes.
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  config:
+    logLevel: info
+    serverPort: 3101
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+filebeat:
+  enabled: true
+  daemonset:
+    tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "100Mi"
+      limits:
+        cpu: "1000m"
+        memory: "200Mi"
+  filebeatConfig:
+    filebeat.yml: |
+      # logging.level: debug
+      filebeat.inputs:
+      - type: container
+        paths:
+          - /var/log/containers/*.log
+        processors:
+        - add_kubernetes_metadata:
+            host: ${NODE_NAME}
+            matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+      output.logstash:
+        hosts: ["logstash-loki-headless:5044"]
+
+logstash:
+  enabled: true
+  replicas: 1
+  fullnameOverride: logstash-loki
+  image: zuberahmed1987/logstash-loki-syslog
+  imageTag: 7.17.8
+  imagePullPolicy: "IfNotPresent"
+  imagePullSecrets: []
+  logstashConfig:
+    logstash.yml: |
+      http.host: "0.0.0.0"
+      xpack.monitoring.enabled: false
+      pipeline.ecs_compatibility: disabled
+      
+  logstashPipeline:
+   logstash.conf: |
+      input {
+          beats {
+              port => 5044
+          }
+      }
+      filter {
+        if [kubernetes] {
+          mutate {
+            add_field => {
+              "container_name" => "%{[kubernetes][container][name]}"
+              "namespace" => "%{[kubernetes][namespace]}"
+              "pod" => "%{[kubernetes][pod][name]}"
+            }
+            replace => { "host" => "%{[kubernetes][node][name]}"}
+          }
+        }
+        mutate {
+          remove_field => ["tags"]
+        }
+      }
+      output {
+        loki {
+          url => "http://loki:3100/loki/api/v1/push"
+          #username => "test"
+          #password => "test"
+          batch_size => 112640
+          retries => 5
+          min_delay => 3
+          max_delay => 500
+          message_field => "message"
+        }   
+        #stdout { codec => rubydebug }
+      }
+
+  logstashJavaOpts: "-Xmx1g -Xms1g"
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "1536Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1536Mi"
+
+  persistence:
+    enabled: false
+    annotations: {}
+  volumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    resources:
+      requests:
+        storage: 1Gi
+
+  # By default this will make sure two pods don't end up on the same node
+  # Changing this to a region would allow you to spread pods across regions
+  antiAffinityTopologyKey: "kubernetes.io/hostname"
+  # Hard means that by default pods will only be scheduled if there are enough nodes for them
+  # and that they will never end up on the same node. Setting this to soft will do this "best effort"
+  antiAffinity: "soft"
+  nodeSelector: {}
+  tolerations: []
