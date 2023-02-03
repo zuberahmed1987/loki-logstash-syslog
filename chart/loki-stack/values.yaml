@@ -178,6 +178,7 @@ loki:
 
 promtail:
   enabled: true
+  fullnameOverride: loki-promtail
   # ServiceMonitor configuration
   serviceMonitor:
     enabled: false
@@ -202,6 +203,7 @@ promtail:
 
 filebeat:
   enabled: false
+  fullnameOverride: loki-filebeat
   daemonset:
     tolerations:
       - key: node-role.kubernetes.io/master
@@ -231,12 +233,12 @@ filebeat:
             - logs_path:
                 logs_path: "/var/log/containers/"
       output.logstash:
-        hosts: ["logstash-loki-headless:5044"]
+        hosts: ["loki-logstash-headless:5044"]
 
 logstash:
   enabled: false
   replicas: 1
-  fullnameOverride: logstash-loki
+  fullnameOverride: loki-logstash
   image: zuberahmed1987/logstash-loki-syslog
   imageTag: 7.17.8
   imagePullPolicy: "IfNotPresent"
