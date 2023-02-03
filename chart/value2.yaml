@@ -1,0 +1,88 @@
+loki:
+  enabled: true
+  fullnameOverride: loki
+
+promtail:
+  enabled: false
+
+filebeat:
+  enabled: true
+  fullnameOverride: loki-filebeat
+  filebeatConfig:
+    filebeat.yml: |
+      filebeat.autodiscover:
+        providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          add_resource_metadata.namespace.enabled: true
+          hints.default_config:
+            enabled: false
+            type: container
+            paths:
+              - /var/log/containers/*-${data.container.id}.log
+      output.logstash:
+        hosts: ["loki-logstash-headless:5044"]
+
+logstash:
+  enabled: true
+  fullnameOverride: loki-logstash
+  image: zuberahmed1987/logstash-loki-syslog
+  imageTag: 7.17.8
+  logstashConfig:
+    logstash.yml: |
+      http.host: "0.0.0.0"
+      xpack.monitoring.enabled: false
+      pipeline.ecs_compatibility: disabled
+      
+  logstashPipeline:
+   logstash.conf: |-
+      input {
+          beats {
+              port => 5044
+          }
+      }
+     
+      filter {
+        if [kubernetes] {
+          mutate {
+            add_field => {
+              "container_name" => "%{[kubernetes][container][name]}"
+              "namespace" => "%{[kubernetes][namespace]}"
+              "pod" => "%{[kubernetes][pod][name]}"
+              "cluster" => "mycluster"
+            }
+            replace => { "host" => "%{[kubernetes][node][name]}"}
+          }
+        }
+        mutate {
+          remove_field => ["tags"]
+          remove_field => ["kubernetes", "log", "agent", "container", "ecs", "input"]
+        }
+      }
+      output {
+        loki {
+          url => "http://loki:3100/loki/api/v1/push"
+          #username => "test"
+          #password => "test"
+          batch_size => 112640
+          retries => 5
+          min_delay => 3
+          max_delay => 500
+          message_field => "message"
+        }
+        
+        # if [namespace] == 'monitoring' {
+          # syslog {
+            # host => "192.168.145.202"
+            # port => "514"
+            # protocol => "tcp"
+            # rfc => "rfc5424"
+            # appname => "%{container_name}"
+            # id => "offload_syslog"
+            # codec => "json"
+          # }
+        # }
+        
+        #stdout { codec => rubydebug }
+      }
