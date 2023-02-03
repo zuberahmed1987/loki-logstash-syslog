@@ -40,6 +40,12 @@ filebeat:
             matchers:
             - logs_path:
                 logs_path: "/var/log/containers/"
+        - drop_event.when:
+            or:
+            - equals:
+                kubernetes.namespace: "kube-system"
+            - equals:
+                kubernetes.namespace: "calico-system"
       output.logstash:
         hosts: ["logstash-loki-headless:5044"]
 
