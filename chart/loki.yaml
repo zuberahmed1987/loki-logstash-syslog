@@ -25,15 +25,6 @@ loki:
 promtail:
   enabled: false
 
-fluent-bit:
-  enabled: false
-
-grafana:
-  enabled: false
-
-prometheus:
-  enabled: false
-
 filebeat:
   enabled: true
   filebeatConfig:
