@@ -197,7 +197,7 @@ promtail:
       - url: http://loki:3100/loki/api/v1/push
 
 filebeat:
-  enabled: true
+  enabled: false
   daemonset:
     tolerations:
       - key: node-role.kubernetes.io/master
@@ -230,7 +230,7 @@ filebeat:
         hosts: ["logstash-loki-headless:5044"]
 
 logstash:
-  enabled: true
+  enabled: false
   replicas: 1
   fullnameOverride: logstash-loki
   image: zuberahmed1987/logstash-loki-syslog
