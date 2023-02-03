@@ -27,6 +27,7 @@ promtail:
 
 filebeat:
   enabled: true
+  fullnameOverride: loki-filebeat
   filebeatConfig:
     filebeat.yml: |
       # logging.level: debug
@@ -47,11 +48,11 @@ filebeat:
             - equals:
                 kubernetes.namespace: "calico-system"
       output.logstash:
-        hosts: ["logstash-loki-headless:5044"]
+        hosts: ["loki-logstash-headless:5044"]
 
 logstash:
   enabled: true
-  fullnameOverride: logstash-loki
+  fullnameOverride: loki-logstash
   image: zuberahmed1987/logstash-loki-syslog
   imageTag: 7.17.8
   logstashConfig:
