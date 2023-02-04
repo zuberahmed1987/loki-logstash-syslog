@@ -61,6 +61,13 @@ logstash:
             replace => { "host" => "%{[kubernetes][node][name]}"}
           }
         }
+        if [kubernetes][namespace_labels][siem] {
+          mutate {
+            add_field => {
+              "siem" => "%{[kubernetes][namespace_labels][siem]}"
+            }
+          }
+        }
         mutate {
           remove_field => ["tags"]
           remove_field => ["kubernetes", "log", "agent", "container", "ecs", "input"]
@@ -78,7 +85,7 @@ logstash:
           message_field => "message"
         }
         
-        if [namespace] == 'monitoring' {
+        if [siem] == 'enabled' {
         syslog {
           host => "192.168.145.202"
           port => "514"
