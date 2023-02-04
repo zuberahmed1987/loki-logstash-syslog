@@ -177,7 +177,7 @@ loki:
   #      for: 2m
 
 promtail:
-  enabled: true
+  enabled: false
   fullnameOverride: loki-promtail
   # ServiceMonitor configuration
   serviceMonitor:
@@ -202,7 +202,7 @@ promtail:
       - url: http://loki:3100/loki/api/v1/push
 
 filebeat:
-  enabled: false
+  enabled: true
   fullnameOverride: loki-filebeat
   daemonset:
     tolerations:
@@ -236,8 +236,8 @@ filebeat:
         hosts: ["loki-logstash-headless:5044"]
 
 logstash:
-  enabled: false
-  replicas: 1
+  enabled: true
+  replicas: 2
   fullnameOverride: loki-logstash
   image: zuberahmed1987/logstash-loki-syslog
   imageTag: 7.17.8
