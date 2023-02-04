@@ -26,6 +26,7 @@ filebeat:
 
 logstash:
   enabled: true
+  replicas: 2
   fullnameOverride: loki-logstash
   image: zuberahmed1987/logstash-loki-syslog
   imageTag: 7.17.8
@@ -36,13 +37,13 @@ logstash:
       pipeline.ecs_compatibility: disabled
       
   logstashPipeline:
-   logstash.conf: |-
+   logstash.conf: |
       input {
           beats {
               port => 5044
           }
       }
-     
+      
       filter {
         if [kubernetes] {
           mutate {
@@ -53,6 +54,13 @@ logstash:
               "cluster" => "mycluster"
             }
             replace => { "host" => "%{[kubernetes][node][name]}"}
+          }
+        }
+        if [kubernetes][namespace_labels][siem] {
+          mutate {
+            add_field => {
+              "siem" => "%{[kubernetes][namespace_labels][siem]}"
+            }
           }
         }
         mutate {
@@ -71,18 +79,17 @@ logstash:
           max_delay => 500
           message_field => "message"
         }
-        
-        # if [namespace] == 'monitoring' {
-          # syslog {
-            # host => "192.168.145.202"
-            # port => "514"
-            # protocol => "tcp"
-            # rfc => "rfc5424"
-            # appname => "%{container_name}"
-            # id => "offload_syslog"
-            # codec => "json"
-          # }
-        # }
-        
-        #stdout { codec => rubydebug }
+        if [siem] == 'enabled' {
+          syslog {
+            host => "192.168.145.202"
+            port => "514"
+            protocol => "tcp"
+            rfc => "rfc5424"
+            appname => "%{container_name}"
+            id => "offload_syslog"
+            codec => "json"
+          }
+        }
+        # stdout { codec => rubydebug }
       }
+      
