@@ -25,6 +25,18 @@ loki:
       reject_old_samples: true
       reject_old_samples_max_age: 168h
       max_entries_limit_per_query: 5000
+      split_queries_by_interval: 0
+      max_query_parallelism: 100
+    query_range:
+      parallelise_shardable_queries: true
+    querier:
+      query_timeout: 1m
+      max_concurrent: 4096
+    query_scheduler:
+      max_outstanding_requests_per_tenant: 4096
+    frontend:
+      max_outstanding_per_tenant: 4096
+      compress_responses: true
     schema_config:
       configs:
       - from: 2020-10-24
