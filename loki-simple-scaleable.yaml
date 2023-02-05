@@ -1,0 +1,795 @@
+
+fullnameOverride: null
+
+loki:
+  config: |
+    {{- if .Values.enterprise.enabled}}
+    {{- tpl .Values.enterprise.config . }}
+    {{- else }}
+    auth_enabled: {{ .Values.loki.auth_enabled }}
+    {{- end }}
+    
+    {{- with .Values.loki.server }}
+    server:
+      {{- toYaml . | nindent 2}}
+    {{- end}}
+    
+    memberlist:
+      join_members:
+        - {{ include "loki.memberlist" . }}
+        {{- with .Values.migrate.fromDistributed }}
+        {{- if .enabled }}
+        - {{ .memberlistService }}
+        {{- end }}
+        {{- end }}
+    
+    {{- with .Values.loki.ingester }}
+    ingester:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    {{- if .Values.loki.commonConfig}}
+    common:
+    {{- toYaml .Values.loki.commonConfig | nindent 2}}
+      storage:
+      {{- include "loki.commonStorageConfig" . | nindent 4}}
+    {{- end}}
+    
+    {{- with .Values.loki.limits_config }}
+    limits_config:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    runtime_config:
+      file: /etc/loki/runtime-config/runtime-config.yaml
+    
+    {{- with .Values.loki.memcached.chunk_cache }}
+    {{- if and .enabled (or .host .addresses) }}
+    chunk_store_config:
+      chunk_cache_config:
+        memcached:
+          batch_size: {{ .batch_size }}
+          parallelism: {{ .parallelism }}
+        memcached_client:
+          {{- if .host }}
+          host: {{ .host }}
+          {{- end }}
+          {{- if .addresses }}
+          addresses: {{ .addresses }}
+          {{- end }}
+          service: {{ .service }}
+    {{- end }}
+    {{- end }}
+    
+    {{- if .Values.loki.schemaConfig}}
+    schema_config:
+    {{- toYaml .Values.loki.schemaConfig | nindent 2}}
+    {{- else }}
+    schema_config:
+      configs:
+        - from: 2022-01-11
+          store: boltdb-shipper
+          object_store: {{ .Values.loki.storage.type }}
+          schema: v12
+          index:
+            prefix: loki_index_
+            period: 24h
+    {{- end }}
+    
+    {{ include "loki.rulerConfig" . }}
+    
+    table_manager:
+      retention_deletes_enabled: false
+      retention_period: 0
+    
+    {{- with .Values.loki.memcached.results_cache }}
+    query_range:
+      align_queries_with_step: true
+      {{- if and .enabled (or .host .addresses) }}
+      cache_results: {{ .enabled }}
+      results_cache:
+        cache:
+          default_validity: {{ .default_validity }}
+          memcached_client:
+            {{- if .host }}
+            host: {{ .host }}
+            {{- end }}
+            {{- if .addresses }}
+            addresses: {{ .addresses }}
+            {{- end }}
+            service: {{ .service }}
+            timeout: {{ .timeout }}
+      {{- end }}
+    {{- end }}
+    
+    {{- with .Values.loki.storage_config }}
+    storage_config:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    {{- with .Values.loki.query_scheduler }}
+    query_scheduler:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    {{- with .Values.loki.compactor }}
+    compactor:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    {{- with .Values.loki.analytics }}
+    analytics:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+    
+    {{- with .Values.loki.querier }}
+    querier:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+
+  auth_enabled: false
+
+  # -- Limits config
+  limits_config:
+    enforce_metric_name: false
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    max_cache_freshness_per_query: 10m
+    split_queries_by_interval: 0
+
+  # -- Check https://grafana.com/docs/loki/latest/configuration/#common_config for more info on how to provide a common configuration
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: 1
+    ring:
+      kvstore:
+        store: memberlist
+
+  # -- Storage config. Providing this will automatically populate all necessary storage configs in the templated config.
+  storage:
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+    type: s3
+    filesystem: null
+    s3:
+      endpoint: loki-minio:9000
+      insecure: true
+      bucketnames: loki-data
+      access_key_id: admin
+      secret_access_key: password
+      s3forcepathstyle: true
+
+  # -- Check https://grafana.com/docs/loki/latest/configuration/#schema_config for more info on how to configure schemas
+  schema_config:
+    configs:
+    - from: 2022-12-24
+      store: boltdb-shipper
+      object_store: s3
+      schema: v12
+      index:
+        prefix: loki_index_
+        period: 24h
+
+  # -- Check https://grafana.com/docs/loki/latest/configuration/#ruler for more info on configuring ruler
+  # rulerConfig:
+    # ruler:
+      # storage:
+        # type: local
+        # local:
+          # directory: /rules
+      # rule_path: /tmp/scratch
+      # alertmanager_url: http://kube-promrtheus-stack-kube-alertmanager.metrics:9093
+      
+
+
+  # -- Structured loki configuration, takes precedence over `loki.config`, `loki.schemaConfig`, `loki.storageConfig`
+  structuredConfig: {}
+
+  # -- Additional query scheduler config
+  query_scheduler:
+    max_outstanding_requests_per_tenant: 4096
+
+  # -- Additional storage config
+  storage_config:
+    boltdb_shipper:
+      active_index_directory: /var/loki/index
+      shared_store: s3
+      cache_location: /var/loki/boltdb-cache
+      cache_ttl: 24h
+    hedging:
+      at: "250ms"
+      max_per_second: 20
+      #up_to: 3
+
+  # --  Optional compactor configuration
+  compactor:
+    shared_store: s3
+
+  # --  Optional analytics configuration
+  analytics: {}
+
+  # --  Optional querier configuration
+  querier:
+    query_timeout: 1m
+    max_concurrent: 4096
+
+  # --  Optional ingester configuration
+  ingester:
+    lifecycler:
+      ring:
+        kvstore:
+          store: memberlist
+        replication_factor: 1
+      final_sleep: 0s
+    chunk_idle_period: 5m
+    chunk_retain_period: 30s
+
+# -- Section for configuring optional Helm test
+test:
+  enabled: false
+
+# Monitoring section determines which monitoring features to enable
+monitoring:
+  # Dashboards for monitoring Loki
+  dashboards:
+    # -- If enabled, create configmap with dashboards for monitoring Loki
+    enabled: true
+    # -- Alternative namespace to create dashboards ConfigMap in
+    namespace: metrics
+    # -- Additional annotations for the dashboards ConfigMap
+    annotations: {}
+    # -- Labels for the dashboards ConfigMap
+    labels:
+      grafana_dashboard: "1"
+
+  # Recording rules for monitoring Loki, required for some dashboards
+  rules:
+    # -- If enabled, create PrometheusRule resource with Loki recording rules
+    enabled: true
+    # -- Include alerting rules
+    alerting: true
+    # -- Alternative namespace to create PrometheusRule resources in
+    namespace: null
+    labels:
+      release: kube-promrtheus-stack
+    # -- Additional groups to add to the rules file
+    additionalGroups: []
+    # - name: additional-loki-rules
+    #   rules:
+    #     - record: job:loki_request_duration_seconds_bucket:sum_rate
+    #       expr: sum(rate(loki_request_duration_seconds_bucket[1m])) by (le, job)
+    #     - record: job_route:loki_request_duration_seconds_bucket:sum_rate
+    #       expr: sum(rate(loki_request_duration_seconds_bucket[1m])) by (le, job, route)
+    #     - record: node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate
+    #       expr: sum(rate(container_cpu_usage_seconds_total[1m])) by (node, namespace, pod, container)
+
+  # ServiceMonitor configuration
+  serviceMonitor:
+    # -- If enabled, ServiceMonitor resources for Prometheus Operator are created
+    enabled: true
+    # -- Namespace selector for ServiceMonitor resources
+    namespaceSelector: {}
+    # -- ServiceMonitor annotations
+    labels:
+      release: kube-promrtheus-stack
+
+    metricsInstance:
+      # -- If enabled, MetricsInstance resources for Grafana Agent Operator are created
+      enabled: false
+
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+  lokiCanary:
+    enabled: false
+
+# Configuration for the write pod(s)
+write:
+  # -- Number of replicas for the write
+  replicas: 1
+  image:
+    # -- The Docker registry for the write image. Overrides `loki.image.registry`
+    registry: null
+    # -- Docker image repository for the write image. Overrides `loki.image.repository`
+    repository: null
+    # -- Docker image tag for the write image. Overrides `loki.image.tag`
+    tag: null
+  # -- The name of the PriorityClass for write pods
+  priorityClassName: null
+  # -- Annotations for write pods
+  podAnnotations: {}
+  # -- Additional labels for each `write` pod
+  podLabels: {}
+  # -- Additional selector labels for each `write` pod
+  selectorLabels: {}
+  # -- Labels for ingester service
+  serviceLabels: {}
+  # -- Comma-separated list of Loki modules to load for the write
+  targetModule: "write"
+  # -- Additional CLI args for the write
+  extraArgs: []
+  # -- Environment variables to add to the write pods
+  extraEnv: []
+  # -- Environment variables from secrets or configmaps to add to the write pods
+  extraEnvFrom: []
+  # -- Lifecycle for the write container
+  lifecycle: {}
+  # -- Init containers to add to the write pods
+  initContainers: []
+  # -- Volume mounts to add to the write pods
+  extraVolumeMounts: []
+  # -- Volumes to add to the write pods
+  extraVolumes: []
+  # -- Resource requests and limits for the write
+  resources: {}
+  # -- Grace period to allow the write to shutdown before it is killed. Especially for the ingester,
+  # this must be increased. It must be long enough so writes can be gracefully shutdown flushing/transferring
+  # all data and to successfully leave the member ring on shutdown.
+  terminationGracePeriodSeconds: 300
+  # -- Affinity for write pods. Passed through `tpl` and, thus, to be configured as string
+  # @default -- Hard node and soft zone anti-affinity
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              {{- include "loki.writeSelectorLabels" . | nindent 10 }}
+          topologyKey: kubernetes.io/hostname
+  # -- Node selector for write pods
+  nodeSelector: {}
+  # -- Tolerations for write pods
+  tolerations: []
+  persistence:
+    # -- Enable StatefulSetAutoDeletePVC feature
+    enableStatefulSetAutoDeletePVC: false
+    # -- Size of persistent disk
+    size: 10Gi
+    # -- Storage class to be used.
+    # If defined, storageClassName: <storageClass>.
+    # If set to "-", storageClassName: "", which disables dynamic provisioning.
+    # If empty or set to null, no storageClassName spec is
+    # set, choosing the default provisioner (gp2 on AWS, standard on GKE, AWS, and OpenStack).
+    storageClass: null
+    # -- Selector for persistent disk
+    selector: null
+
+# Configuration for the table-manager
+tableManager:
+  # -- Specifies whether the table-manager should be enabled
+  enabled: false
+  image:
+    # -- The Docker registry for the table-manager image. Overrides `loki.image.registry`
+    registry: null
+    # -- Docker image repository for the table-manager image. Overrides `loki.image.repository`
+    repository: null
+    # -- Docker image tag for the table-manager image. Overrides `loki.image.tag`
+    tag: null
+  # -- Command to execute instead of defined in Docker image
+  command: null
+  # -- The name of the PriorityClass for table-manager pods
+  priorityClassName: null
+  # -- Labels for table-manager pods
+  podLabels: {}
+  # -- Annotations for table-manager pods
+  podAnnotations: {}
+  # -- Labels for table-manager service
+  serviceLabels: {}
+  # -- Additional CLI args for the table-manager
+  extraArgs: []
+  # -- Environment variables to add to the table-manager pods
+  extraEnv: []
+  # -- Environment variables from secrets or configmaps to add to the table-manager pods
+  extraEnvFrom: []
+  # -- Volume mounts to add to the table-manager pods
+  extraVolumeMounts: []
+  # -- Volumes to add to the table-manager pods
+  extraVolumes: []
+  # -- Resource requests and limits for the table-manager
+  resources: {}
+  # -- Containers to add to the table-manager pods
+  extraContainers: []
+  # -- Grace period to allow the table-manager to shutdown before it is killed
+  terminationGracePeriodSeconds: 30
+  # -- Affinity for table-manager pods. Passed through `tpl` and, thus, to be configured as string
+  # @default -- Hard node and soft zone anti-affinity
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              {{- include "loki.tableManagerSelectorLabels" . | nindent 10 }}
+          topologyKey: kubernetes.io/hostname
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                {{- include "loki.tableManagerSelectorLabels" . | nindent 12 }}
+            topologyKey: failure-domain.beta.kubernetes.io/zone
+  # -- Node selector for table-manager pods
+  nodeSelector: {}
+  # -- Tolerations for table-manager pods
+  tolerations: []
+
+# Configuration for the read pod(s)
+read:
+  # -- Number of replicas for the read
+  replicas: 1
+  autoscaling:
+    # -- Enable autoscaling for the read, this is only used if `queryIndex.enabled: true`
+    enabled: false
+    # -- Minimum autoscaling replicas for the read
+    minReplicas: 1
+    # -- Maximum autoscaling replicas for the read
+    maxReplicas: 3
+    # -- Target CPU utilisation percentage for the read
+    targetCPUUtilizationPercentage: 60
+    # -- Target memory utilisation percentage for the read
+    targetMemoryUtilizationPercentage:
+  image:
+    # -- The Docker registry for the read image. Overrides `loki.image.registry`
+    registry: null
+    # -- Docker image repository for the read image. Overrides `loki.image.repository`
+    repository: null
+    # -- Docker image tag for the read image. Overrides `loki.image.tag`
+    tag: null
+  # -- The name of the PriorityClass for read pods
+  priorityClassName: null
+  # -- Annotations for read pods
+  podAnnotations: {}
+  # -- Additional labels for each `read` pod
+  podLabels: {}
+  # -- Additional selector labels for each `read` pod
+  selectorLabels: {}
+  # -- Labels for read service
+  serviceLabels: {}
+  # -- Comma-separated list of Loki modules to load for the read
+  targetModule: "read"
+  # -- Whether or not to use the 2 target type simple scalable mode (read, write) or the
+  # 3 target type (read, write, backend). Legacy refers to the 2 target type, so true will
+  # run two targets, false will run 3 targets.
+  legacyReadTarget: false
+  # -- Additional CLI args for the read
+  extraArgs: []
+  # -- Environment variables to add to the read pods
+  extraEnv: []
+  # -- Environment variables from secrets or configmaps to add to the read pods
+  extraEnvFrom: []
+  # -- Lifecycle for the read container
+  lifecycle: {}
+  # -- Volume mounts to add to the read pods
+  extraVolumeMounts: []
+  # -- Volumes to add to the read pods
+  extraVolumes: []
+  # -- Resource requests and limits for the read
+  resources: {}
+  # -- Grace period to allow the read to shutdown before it is killed
+  terminationGracePeriodSeconds: 30
+  # -- Affinity for read pods. Passed through `tpl` and, thus, to be configured as string
+  # @default -- Hard node and soft zone anti-affinity
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              {{- include "loki.readSelectorLabels" . | nindent 10 }}
+          topologyKey: kubernetes.io/hostname
+  # -- Node selector for read pods
+  nodeSelector: {}
+  # -- Tolerations for read pods
+  tolerations: []
+  persistence:
+    # -- Enable StatefulSetAutoDeletePVC feature
+    enableStatefulSetAutoDeletePVC: true
+    # -- Size of persistent disk
+    size: 10Gi
+    # -- Storage class to be used.
+    # If defined, storageClassName: <storageClass>.
+    # If set to "-", storageClassName: "", which disables dynamic provisioning.
+    # If empty or set to null, no storageClassName spec is
+    # set, choosing the default provisioner (gp2 on AWS, standard on GKE, AWS, and OpenStack).
+    storageClass: null
+    # -- Selector for persistent disk
+    selector: null
+
+# Configuration for the backend pod(s)
+backend:
+  # -- Number of replicas for the backend
+  replicas: 1
+  image:
+    # -- The Docker registry for the backend image. Overrides `loki.image.registry`
+    registry: null
+    # -- Docker image repository for the backend image. Overrides `loki.image.repository`
+    repository: null
+    # -- Docker image tag for the backend image. Overrides `loki.image.tag`
+    tag: null
+  # -- The name of the PriorityClass for backend pods
+  priorityClassName: null
+  # -- Annotations for backend pods
+  podAnnotations: {}
+  # -- Additional selector labels for each `backend` pod
+  selectorLabels: {}
+  # -- Labels for ingester service
+  serviceLabels: {}
+  # -- Comma-separated list of Loki modules to load for the read
+  targetModule: "backend"
+  # -- Additional CLI args for the backend
+  extraArgs: []
+  # -- Environment variables to add to the backend pods
+  extraEnv: []
+  # -- Environment variables from secrets or configmaps to add to the backend pods
+  extraEnvFrom: []
+  # -- Init containers to add to the backend pods
+  initContainers: []
+  # -- Volume mounts to add to the backend pods
+  extraVolumeMounts: []
+  # -- Volumes to add to the backend pods
+  extraVolumes: []
+  # -- Resource requests and limits for the backend
+  resources: {}
+  # -- Grace period to allow the backend to shutdown before it is killed. Especially for the ingester,
+  # this must be increased. It must be long enough so backends can be gracefully shutdown flushing/transferring
+  # all data and to successfully leave the member ring on shutdown.
+  terminationGracePeriodSeconds: 300
+  # -- Affinity for backend pods. Passed through `tpl` and, thus, to be configured as string
+  # @default -- Hard node and soft zone anti-affinity
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              {{- include "loki.backendSelectorLabels" . | nindent 10 }}
+          topologyKey: kubernetes.io/hostname
+  # -- Node selector for backend pods
+  nodeSelector: {}
+  # -- Tolerations for backend pods
+  tolerations: []
+  persistence:
+    # -- Enable StatefulSetAutoDeletePVC feature
+    enableStatefulSetAutoDeletePVC: true
+    # -- Size of persistent disk
+    size: 10Gi
+    # -- Storage class to be used.
+    # If defined, storageClassName: <storageClass>.
+    # If set to "-", storageClassName: "", which disables dynamic provisioning.
+    # If empty or set to null, no storageClassName spec is
+    # set, choosing the default provisioner (gp2 on AWS, standard on GKE, AWS, and OpenStack).
+    storageClass: null
+    # -- Selector for persistent disk
+    selector: null
+
+ingress:
+  enabled: false
+  ingressClassName: ""
+  annotations: {}
+  #    nginx.ingress.kubernetes.io/auth-type: basic
+  #    nginx.ingress.kubernetes.io/auth-secret: loki-distributed-basic-auth
+  #    nginx.ingress.kubernetes.io/auth-secret-type: auth-map
+  #    nginx.ingress.kubernetes.io/configuration-snippet: |
+  #      proxy_set_header X-Scope-OrgID $remote_user;
+  paths:
+    write:
+      - /api/prom/push
+      - /loki/api/v1/push
+    read:
+      - /api/prom/tail
+      - /loki/api/v1/tail
+      - /loki/api
+      - /api/prom/rules
+      - /loki/api/v1/rules
+      - /prometheus/api/v1/rules
+      - /prometheus/api/v1/alerts
+
+  hosts:
+    - loki.example.com
+  tls: []
+#    - hosts:
+#       - loki.example.com
+#      secretName: loki-distributed-tls
+
+# Configuration for the gateway
+gateway:
+  # -- Specifies whether the gateway should be enabled
+  enabled: true
+  # -- Number of replicas for the gateway
+  replicas: 1
+  # -- Enable logging of 2xx and 3xx HTTP requests
+  verboseLogging: true
+  autoscaling:
+    # -- Enable autoscaling for the gateway
+    enabled: false
+    # -- Minimum autoscaling replicas for the gateway
+    minReplicas: 1
+    # -- Maximum autoscaling replicas for the gateway
+    maxReplicas: 3
+    # -- Target CPU utilisation percentage for the gateway
+    targetCPUUtilizationPercentage: 60
+    # -- Target memory utilisation percentage for the gateway
+    targetMemoryUtilizationPercentage:
+  # -- See `kubectl explain deployment.spec.strategy` for more
+  # -- ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+  deploymentStrategy:
+    type: RollingUpdate
+  image:
+    # -- The Docker registry for the gateway image
+    registry: docker.io
+    # -- The gateway image repository
+    repository: nginxinc/nginx-unprivileged
+    # -- The gateway image tag
+    tag: 1.19-alpine
+    # -- The gateway image pull policy
+    pullPolicy: IfNotPresent
+  # -- The name of the PriorityClass for gateway pods
+  priorityClassName: null
+  # -- Annotations for gateway pods
+  podAnnotations: {}
+  # -- Additional labels for gateway pods
+  podLabels: {}
+  # -- Additional CLI args for the gateway
+  extraArgs: []
+  # -- Environment variables to add to the gateway pods
+  extraEnv: []
+  # -- Environment variables from secrets or configmaps to add to the gateway pods
+  extraEnvFrom: []
+  # -- Lifecycle for the gateway container
+  lifecycle: {}
+  # -- Volumes to add to the gateway pods
+  extraVolumes: []
+  # -- Volume mounts to add to the gateway pods
+  extraVolumeMounts: []
+  # -- The SecurityContext for gateway containers
+  podSecurityContext:
+    fsGroup: 101
+    runAsGroup: 101
+    runAsNonRoot: true
+    runAsUser: 101
+  # -- The SecurityContext for gateway containers
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    allowPrivilegeEscalation: false
+  # -- Resource requests and limits for the gateway
+  resources: {}
+  # -- Grace period to allow the gateway to shutdown before it is killed
+  terminationGracePeriodSeconds: 30
+  # -- Affinity for gateway pods. Passed through `tpl` and, thus, to be configured as string
+  # @default -- Hard node and soft zone anti-affinity
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              {{- include "loki.gatewaySelectorLabels" . | nindent 10 }}
+          topologyKey: kubernetes.io/hostname
+  # -- Node selector for gateway pods
+  nodeSelector: {}
+  # -- Tolerations for gateway pods
+  tolerations: []
+  # Gateway service configuration
+  service:
+    # -- Port of the gateway service
+    port: 80
+    # -- Type of the gateway service
+    type: ClusterIP
+    # -- ClusterIP of the gateway service
+    clusterIP: null
+    # -- (int) Node port if service type is NodePort
+    nodePort: null
+    # -- Load balancer IPO address if service type is LoadBalancer
+    loadBalancerIP: null
+    # -- Annotations for the gateway service
+    annotations: {}
+    # -- Labels for gateway service
+    labels: {}
+  # Gateway ingress configuration
+  ingress:
+    # -- Specifies whether an ingress for the gateway should be created
+    enabled: false
+    # -- Ingress Class Name. MAY be required for Kubernetes versions >= 1.18
+    ingressClassName: ""
+    # -- Annotations for the gateway ingress
+    annotations: {}
+    # -- Hosts configuration for the gateway ingress
+    hosts:
+      - host: gateway.loki.example.com
+        paths:
+          - path: /
+            # -- pathType (e.g. ImplementationSpecific, Prefix, .. etc.) might also be required by some Ingress Controllers
+            # pathType: Prefix
+    # -- TLS configuration for the gateway ingress
+    tls:
+      - secretName: loki-gateway-tls
+        hosts:
+          - gateway.loki.example.com
+  # Basic auth configuration
+  basicAuth:
+    # -- Enables basic authentication for the gateway
+    enabled: false
+    # -- The basic auth username for the gateway
+    username: null
+    # -- The basic auth password for the gateway
+    password: null
+    # -- Uses the specified username and password to compute a htpasswd using Sprig's `htpasswd` function.
+    # The value is templated using `tpl`. Override this to use a custom htpasswd, e.g. in case the default causes
+    # high CPU load.
+    htpasswd: >-
+      {{ htpasswd (required "'gateway.basicAuth.username' is required" .Values.gateway.basicAuth.username) (required "'gateway.basicAuth.password' is required" .Values.gateway.basicAuth.password) }}
+
+    # -- Existing basic auth secret to use. Must contain '.htpasswd'
+    existingSecret: null
+  # Configures the readiness probe for the gateway
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 15
+    timeoutSeconds: 1
+  nginxConfig:
+    # -- NGINX log format
+    logFormat: |-
+      main '$remote_addr - $remote_user [$time_local]  $status '
+              '"$request" $body_bytes_sent "$http_referer" '
+              '"$http_user_agent" "$http_x_forwarded_for"';
+    # -- Allows appending custom configuration to the server block
+    serverSnippet: ""
+    # -- Allows appending custom configuration to the http block
+    httpSnippet: ""
+    # -- Config file contents for Nginx. Passed through the `tpl` function to allow templating
+    # @default -- See values.yaml
+    file: |
+      {{- include "loki.nginxFile" . | indent 2 -}}
+
+minio:
+  enabled: true
+  replicas: 1
+  # Minio requires 2 to 16 drives for erasure code (drivesPerNode * replicas)
+  # https://docs.min.io/docs/minio-erasure-code-quickstart-guide
+  # Since we only have 1 replica, that means 2 drives must be used.
+  drivesPerNode: 2
+  rootUser: admin
+  rootPassword: password
+  buckets:
+    - name: chunks
+      policy: none
+      purge: false
+    - name: ruler
+      policy: none
+      purge: false
+    - name: admin
+      policy: none
+      purge: false
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Create extra manifests via values. Would be passed through `tpl` for templating
+extraObjects: []
+# - apiVersion: v1
+#   kind: ConfigMap
+#   metadata:
+#     name: loki-alerting-rules
+#   data:
+#     loki-alerting-rules.yaml: |-
+#       groups:
+#         - name: example
+#           rules:
+#           - alert: example
+#             expr: |
+#               sum(count_over_time({app="loki"} |~ "error")) > 0
+#             for: 3m
+#             labels:
+#               severity: warning
+#               category: logs
+#             annotations:
+#               message: "loki has encountered errors"
+
