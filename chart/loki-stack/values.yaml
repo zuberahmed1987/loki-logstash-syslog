@@ -18,8 +18,9 @@ loki:
         dir: /data/loki/wal
       lifecycler:
         ring:
+          kvstore:
+            store: memberlist
           replication_factor: 1
-
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
@@ -91,9 +92,10 @@ loki:
   #        directory: /rules
   #    rule_path: /tmp/scratch
   #    alertmanager_url: http://alertmanager.svc.namespace:9093
+  #    external_url: https://alertmanager.xx
   #    ring:
   #      kvstore:
-  #        store: inmemory
+  #        store: memberlist
   #    enable_api: true
 
   ingress:
