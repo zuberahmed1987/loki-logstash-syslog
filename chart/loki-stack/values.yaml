@@ -5,6 +5,15 @@ loki:
   config:
     # existingSecret:
     auth_enabled: false
+    tracing:
+      enabled: false
+    analytics:
+      reporting_enabled: false
+    common:
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: memberlist
     memberlist:
       join_members:
         # the value must be defined as string to be evaluated when secret manifest is being generating
