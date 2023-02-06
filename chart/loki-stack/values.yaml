@@ -132,7 +132,13 @@ loki:
     #     app.kubernetes.io/name: loki
     # subPath: ""
     # existingClaim:
-
+  resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
   serviceMonitor:
     enabled: false
     interval: ""
@@ -209,6 +215,13 @@ promtail:
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
       effect: NoSchedule
+  resources: {}
+  #  limits:
+  #    cpu: 200m
+  #    memory: 128Mi
+  #  requests:
+  #    cpu: 100m
+  #    memory: 128Mi
   config:
     logLevel: info
     serverPort: 3101
