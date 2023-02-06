@@ -65,28 +65,26 @@ loki:
         shared_store: filesystem
       filesystem:
         directory: /data/loki/chunks
-        filesystem:
-          directory: /data/loki/chunks
-        #aws:
-        #  s3: null
-        #  endpoint: null
-        #  region: null
-        #  bucketnames: null
-        #  secretAccessKey: null
-        #  accessKeyId: null
-        #  s3ForcePathStyle: false
-        #  insecure: false
-        #  http_config: {}
-        #gcs:
-        #  bucket_name: lokixxxx
-        #  requestTimeout: "0s"
-        #  chunk_buffer_size: 0
-        #azure:
-        #  accountName: xxxxxxxxxxxx
-        #  accountKey: xxxxxxxxxxxxxxxxxxxxxxxx
-        #  container_name: loki
-        #  endpoint_suffix: core.windows.net
-        #  requestTimeout: 30s
+      #aws:
+      #  s3: null
+      #  endpoint: null
+      #  region: null
+      #  bucketnames: null
+      #  secretAccessKey: null
+      #  accessKeyId: null
+      #  s3ForcePathStyle: false
+      #  insecure: false
+      #  http_config: {}
+      #gcs:
+      #  bucket_name: lokixxxx
+      #  requestTimeout: "0s"
+      #  chunk_buffer_size: 0
+      #azure:
+      #  accountName: xxxxxxxxxxxx
+      #  accountKey: xxxxxxxxxxxxxxxxxxxxxxxx
+      #  container_name: loki
+      #  endpoint_suffix: core.windows.net
+      #  requestTimeout: 30s
     chunk_store_config:
       max_look_back_period: 0s
     table_manager:
