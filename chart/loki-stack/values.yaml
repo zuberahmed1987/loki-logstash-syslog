@@ -287,7 +287,7 @@ logstash:
         if [kubernetes] {
           mutate {
             add_field => {
-              "container_name" => "%{[kubernetes][container][name]}"
+              "container" => "%{[kubernetes][container][name]}"
               "namespace" => "%{[kubernetes][namespace]}"
               "pod" => "%{[kubernetes][pod][name]}"
             }
