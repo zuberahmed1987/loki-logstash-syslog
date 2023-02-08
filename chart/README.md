@@ -20,6 +20,7 @@ These configurations can be changed as per the usecase.
 annotations:
   co.elastic.logs/enabled: 'true'
 ```
+Refer here for more details -> [Link](https://www.elastic.co/guide/en/beats/filebeat/7.17/configuration-autodiscover-hints.html)
 
 ### Multiline Java logs
 ```yaml
@@ -42,3 +43,5 @@ Caused by: java.lang.NullPointerException
        at com.example.myproject.Author.getBookIds(Author.java:35)
        ... 1 more
 ```
+Refer here for more details -> [Link](https://www.elastic.co/guide/en/beats/filebeat/current/multiline-examples.html)
+
