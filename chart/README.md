@@ -33,7 +33,7 @@ annotations:
   co.elastic.logs/multiline.timeout: 120s #default 5s
   co.elastic.logs/multiline.max_lines: 1000 #default 500
 ```
-Here’s a Java stack trace that presents a slightly more complex example:
+Here’s a Java stack trace that presents a multiline log example:
 ```java
 Exception in thread "main" java.lang.IllegalStateException: A book has a null property
        at com.example.myproject.Author.getBookIds(Author.java:38)
