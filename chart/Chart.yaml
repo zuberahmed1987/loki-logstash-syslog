@@ -1,0 +1,26 @@
+---
+apiVersion: v2
+name: loki-fluentbit
+description: Helm chart for Grafana Loki stack in simple mode
+type: application
+appVersion: 2.6.1
+version: 2.16.0
+home: https://github.com/zuberahmed1987/loki-logstash-syslog
+maintainers:
+  - name: zuberahmed1987
+sources:
+  - https://github.com/grafana/loki
+  - https://grafana.com/oss/loki/
+  - https://grafana.com/docs/loki/latest/
+icon: https://grafana.com/docs/loki/latest/logo_and_name.png
+dependencies:
+  - name: "loki"
+    condition: loki.enabled
+    repository: "https://grafana.github.io/helm-charts"
+    version: "^2.16.0"
+  - name: "fluent-bit"
+    alias: "fluentbit"
+    condition: fluentbit.enabled
+    repository: "https://fluent.github.io/helm-charts"
+    version: "0.23.0"
+

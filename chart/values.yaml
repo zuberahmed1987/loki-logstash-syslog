@@ -1,0 +1,395 @@
+loki:
+  enabled: true
+  replicas: 1
+  fullnameOverride: loki
+  config:
+    # existingSecret:
+    auth_enabled: false
+    tracing:
+      enabled: false
+    analytics:
+      reporting_enabled: false
+    common:
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: memberlist
+    memberlist:
+      join_members:
+        # the value must be defined as string to be evaluated when secret manifest is being generating
+        - '{{ include "loki.fullname" . }}-memberlist'
+    ingester:
+      chunk_idle_period: 3m
+      chunk_block_size: 262144
+      chunk_retain_period: 1m
+      max_transfer_retries: 0
+      wal:
+        dir: /data/loki/wal
+      lifecycler:
+        ring:
+          kvstore:
+            store: memberlist
+          replication_factor: 1
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      max_entries_limit_per_query: 5000
+      split_queries_by_interval: 0
+      max_query_parallelism: 100
+      retention_period: 240h
+    query_range:
+      parallelise_shardable_queries: true
+    querier:
+      query_timeout: 1m
+      max_concurrent: 4096
+    query_scheduler:
+      max_outstanding_requests_per_tenant: 4096
+    frontend:
+      max_outstanding_per_tenant: 4096
+      compress_responses: true
+    schema_config:
+      configs:
+      - from: 2020-10-24
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: loki_index_
+          period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/boltdb-shipper-active
+        cache_location: /data/loki/boltdb-shipper-cache
+        cache_ttl: 24h         # Can be increased for faster performance over longer query periods, uses more disk space
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+      #aws:
+      #  s3: null
+      #  endpoint: null
+      #  region: null
+      #  bucketnames: null
+      #  secretAccessKey: null
+      #  accessKeyId: null
+      #  s3ForcePathStyle: false
+      #  insecure: false
+      #  http_config: {}
+      #gcs:
+      #  bucket_name: lokixxxx
+      #  requestTimeout: "0s"
+      #  chunk_buffer_size: 0
+      #azure:
+      #  accountName: xxxxxxxxxxxx
+      #  accountKey: xxxxxxxxxxxxxxxxxxxxxxxx
+      #  container_name: loki
+      #  endpoint_suffix: core.windows.net
+      #  requestTimeout: 30s
+    chunk_store_config:
+      max_look_back_period: 0s
+    table_manager:
+      retention_deletes_enabled: false
+      retention_period: 0s
+    compactor:
+      working_directory: /data/loki/boltdb-shipper-compactor
+      shared_store: filesystem
+      #retention_enabled: true
+      #deletion_mode: filter-and-delete
+  # Needed for Alerting: https://grafana.com/docs/loki/latest/rules/
+  # This is just a simple example, for more details: https://grafana.com/docs/loki/latest/configuration/#ruler_config
+  #  ruler:
+  #    storage:
+  #      type: local
+  #      local:
+  #        directory: /rules
+  #    rule_path: /tmp/scratch
+  #    alertmanager_url: http://alertmanager.svc.namespace:9093
+  #    external_url: https://alertmanager.xx
+  #    ring:
+  #      kvstore:
+  #        store: memberlist
+  #    enable_api: true
+
+  ingress:
+    enabled: false
+    # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+    # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+    # ingressClassName: nginx
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - host: chart-example.local
+        paths: []
+    tls: []
+    #  - secretName: chart-example-tls
+    #    hosts:
+    #      - chart-example.local
+
+  affinity: {}
+  nodeSelector: {}
+  tolerations: []
+
+  extraArgs: {}
+    # log.level: debug
+  
+  persistence:
+    enabled: false
+    accessModes:
+    - ReadWriteOnce
+    size: 10Gi
+    # storageClassName:
+    # selector:
+    #   matchLabels:
+    #     app.kubernetes.io/name: loki
+    # subPath: ""
+    # existingClaim:
+  resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  serviceMonitor:
+    enabled: false
+    interval: ""
+    additionalLabels: {}
+    annotations: {}
+    # scrapeTimeout: 10s
+    # path: /metrics
+    scheme: null
+    tlsConfig: {}
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+    #  namespace:
+      rules: []
+      #  Some examples from https://awesome-prometheus-alerts.grep.to/rules.html#loki
+      #  - alert: LokiProcessTooManyRestarts
+      #    expr: changes(process_start_time_seconds{job=~"loki"}[15m]) > 2
+      #    for: 0m
+      #    labels:
+      #      severity: warning
+      #    annotations:
+      #      summary: Loki process too many restarts (instance {{ $labels.instance }})
+      #      description: "A loki process had too many restarts (target {{ $labels.instance }})\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestErrors
+      #    expr: 100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[1m])) by (namespace, job, route) / sum(rate(loki_request_duration_seconds_count[1m])) by (namespace, job, route) > 10
+      #    for: 15m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request errors (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} and {{ $labels.route }} are experiencing errors\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestPanic
+      #    expr: sum(increase(loki_panic_total[10m])) by (namespace, job) > 0
+      #    for: 5m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request panic (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} is experiencing {{ printf \"%.2f\" $value }}% increase of panics\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+      #  - alert: LokiRequestLatency
+      #    expr: (histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket{route!~"(?i).*tail.*"}[5m])) by (le)))  > 1
+      #    for: 5m
+      #    labels:
+      #      severity: critical
+      #    annotations:
+      #      summary: Loki request latency (instance {{ $labels.instance }})
+      #      description: "The {{ $labels.job }} {{ $labels.route }} is experiencing {{ printf \"%.2f\" $value }}s 99th percentile latency\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+  # Specify Loki Alerting rules based on this documentation: https://grafana.com/docs/loki/latest/rules/
+  # When specified, you also need to add a ruler config section above. An example is shown in the rules docs.
+  alerting_groups: []
+  #  - name: example
+  #    rules:
+  #    - alert: HighThroughputLogStreams
+  #      expr: sum by(container) (rate({job=~"loki-dev/.*"}[1m])) > 1000
+  #      for: 2m
+
+fluentbit:
+  enabled: false
+  fullnameOverride: "loki-fluent-bit"
+  testFramework:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  #   namespace: monitoring
+  #   interval: 30s
+  #   scrapeTimeout: 30s
+  #   jobLabel: fluentbit
+  #   selector:
+  #    prometheus: my-prometheus
+  #  ## metric relabel configs to apply to samples before ingestion.
+  #  ##
+  #  metricRelabelings:
+  #    - sourceLabels: [__meta_kubernetes_service_label_cluster]
+  #      targetLabel: cluster
+  #      regex: (.*)
+  #      replacement: ${1}
+  #      action: replace
+  #  ## relabel configs to apply to samples after ingestion.
+  #  ##
+  #  relabelings:
+  #    - sourceLabels: [__meta_kubernetes_pod_node_name]
+  #      separator: ;
+  #      regex: ^(.*)$
+  #      targetLabel: nodename
+  #      replacement: $1
+  #      action: replace
+  #  scheme: ""
+  #  tlsConfig: {}
+  
+  prometheusRule:
+    enabled: false
+  #   namespace: ""
+  #   additionalLabels: {}
+  #   rules:
+  #   - alert: NoOutputBytesProcessed
+  #     expr: rate(fluentbit_output_proc_bytes_total[5m]) == 0
+  #     annotations:
+  #       message: |
+  #         Fluent Bit instance {{ $labels.instance }}'s output plugin {{ $labels.name }} has not processed any
+  #         bytes for at least 15 minutes.
+  #       summary: No Output Bytes Processed
+  #     for: 15m
+  #     labels:
+  #       severity: critical
+  dashboards:
+    enabled: false
+    labelKey: grafana_dashboard
+    annotations: {}
+    namespace: ""
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  logLevel: info
+  luaScripts: {}
+  flush: 1
+  metricsPort: 2020
+  ## https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-mode/configuration-file
+  config:
+    service: |
+      [SERVICE]
+          Daemon Off
+          Flush {{ .Values.flush }}
+          Log_Level {{ .Values.logLevel }}
+          Parsers_File parsers.conf
+          Parsers_File custom_parsers.conf
+          HTTP_Server On
+          HTTP_Listen 0.0.0.0
+          HTTP_Port {{ .Values.metricsPort }}
+          Health_Check On
+          storage.path              /var/log/flb-storage/
+          storage.sync              normal
+          storage.checksum          off
+          storage.max_chunks_up     128
+          storage.backlog.mem_limit 10M
+    ## https://docs.fluentbit.io/manual/pipeline/inputs
+    inputs: |
+      [INPUT]
+          Name tail
+          Path /var/log/containers/*.log
+          multiline.parser docker, cri
+          Tag kube.*
+          Mem_Buf_Limit 10MB
+          Skip_Long_Lines On
+    ## https://docs.fluentbit.io/manual/pipeline/filters
+    filters: |
+      [FILTER]
+          Name kubernetes
+          Match kube.*
+          Merge_Log On
+          Keep_Log Off
+          K8S-Logging.Parser On
+          K8S-Logging.Exclude On
+          Annotations Off
+      [FILTER]
+          Name    grep
+          Match   *
+          Exclude $kubernetes['namespace'] loki|metrics|kube-system
+      [FILTER]
+          Name nest
+          Match *
+          Operation lift
+          Nested_under kubernetes
+          Add_prefix kubernetes_
+      [FILTER]
+          Name modify
+          Match *
+          Remove labels
+          Remove kubernetes_pod_id
+          Remove kubernetes_host
+          Remove kubernetes_container_hash
+          Remove kubernetes_container_image
+          Remove kubernetes_docker_id
+          Hard_rename kubernetes_container_name container
+          Hard_rename kubernetes_namespace_name namespace
+          Hard_rename kubernetes_pod_name pod
+          Hard_rename kubernetes_labels labels
+      [FILTER]
+          Name          rewrite_tag
+          Match         kube.*
+          Rule          $namespace ^(argocd)$  argocd.$TAG false
+          Emitter_Name  re_emitted
+          Emitter_Storage.type filesystem
+    ## https://docs.fluentbit.io/manual/pipeline/outputs
+    outputs: |
+      [OUTPUT]
+          Name loki
+          Match kube.*
+          host loki
+          port 3100
+          labels cluster=others
+          label_keys $container, $namespace, $pod, $stream
+          auto_kubernetes_labels false
+          line_format json
+      [OUTPUT]
+          Name loki
+          Match argocd.*
+          host loki
+          port 3100
+          labels cluster=loki
+          label_keys $container, $namespace, $pod, $stream
+          auto_kubernetes_labels false
+          line_format json
+    # label_map_path /fluent-bit/etc/labelmap.json
+    # remove_keys kubernetes_container_name,kubernetes_labels,kubernetes_namespace_name,kubernetes_pod_name
+
+      # [OUTPUT]
+          # name                 syslog
+          # match                siem.*
+          # host                 syslog.yourserver.com
+          # port                 514
+          # mode                 udp
+          # syslog_format        rfc5424
+          # syslog_maxsize       2048
+          # syslog_severity_key  severity
+          # syslog_facility_key  facility
+          # syslog_hostname_key  hostname
+          # syslog_appname_key   appname
+          # syslog_procid_key    procid
+          # syslog_msgid_key     msgid
+          # syslog_sd_key        sd
+          # syslog_message_key   log
+    # extraFiles:
+      # labelmap.json: |
+          # {
+              # "kubernetes_container_name": "container",
+              # "host": "node",
+              # "kubernetes_labels": {
+                # "app": "app",
+                # "release": "release"
+              # },
+            # "kubernetes_namespace_name": "namespace",
+            # "kubernetes_pod_name": "pod",
+            # "stream": "stream"
+          # }
