@@ -88,7 +88,7 @@ logstash:
             port => "514"
             protocol => "tcp"
             rfc => "rfc5424"
-            appname => "%{container_name}"
+            appname => "%{container}"
             id => "offload_syslog"
             codec => "json"
           }
