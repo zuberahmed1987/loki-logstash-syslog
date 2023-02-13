@@ -308,7 +308,11 @@ logstash:
         }
         mutate {
           remove_field => ["tags"]
+          remove_field => ["kubernetes", "log", "agent", "container", "ecs", "input"]
         }
+        mutate {
+          rename => {"container_name" => "container"}
+        }        
       }
       output {
         loki {
