@@ -3,6 +3,13 @@ loki:
   replicas: 1
   fullnameOverride: loki
   config:
+    server:
+      grpc_server_max_concurrent_streams: 1000
+      grpc_server_max_recv_msg_size: 80000000
+      grpc_server_max_send_msg_size: 80000000
+      http_server_idle_timeout: 40m
+      http_server_read_timeout: 20m
+      http_server_write_timeout: 20m
     # existingSecret:
     auth_enabled: false
     tracing:
@@ -19,35 +26,60 @@ loki:
         # the value must be defined as string to be evaluated when secret manifest is being generating
         - '{{ include "loki.fullname" . }}-memberlist'
     ingester:
-      chunk_idle_period: 3m
+      chunk_idle_period: 30
+      max_chunk_age: 1h
       chunk_block_size: 262144
-      chunk_retain_period: 1m
+      chunk_target_size: 2621440
+      chunk_retain_period: 10m
+      chunk_encoding: snappy
       max_transfer_retries: 0
       wal:
         dir: /data/loki/wal
-      lifecycler:
-        ring:
-          kvstore:
-            store: memberlist
-          replication_factor: 1
+    ingester_client:
+      grpc_client_config:
+        grpc_compression: snappy
+        max_recv_msg_size: 1048576000
+        max_send_msg_size: 1048576000
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
       reject_old_samples_max_age: 168h
       max_entries_limit_per_query: 5000
-      split_queries_by_interval: 0
-      max_query_parallelism: 100
+      split_queries_by_interval: 5m
+      max_query_parallelism: 5000
+      max_query_series: 100000000
+      per_stream_rate_limit: 30MB
+      per_stream_rate_limit_burst: 60MB
+      ingestion_rate_mb: 10
+      ingestion_burst_size_mb: 20
+      max_concurrent_tail_requests: 20
+      max_cache_freshness_per_query: 10m
       retention_period: 240h
     query_range:
-      parallelise_shardable_queries: true
+      parallelise_shardable_queries: false
+      align_queries_with_step: true
+      cache_results: true
     querier:
-      query_timeout: 1m
-      max_concurrent: 4096
+      engine:
+        timeout: 15m
+      query_timeout: 5m
+      max_concurrent: 5000
     query_scheduler:
-      max_outstanding_requests_per_tenant: 4096
+      max_outstanding_requests_per_tenant: 5000
+    frontend_worker:
+      parallelism: 64
+      grpc_client_config:
+        grpc_compression: snappy
+        max_recv_msg_size: 1048576000
+        max_send_msg_size: 1048576000
     frontend:
       max_outstanding_per_tenant: 4096
+      scheduler_worker_concurrency: 16
       compress_responses: true
+      grpc_client_config:
+        grpc_compression: snappy
+        max_recv_msg_size: 1048576000
+        max_send_msg_size: 1048576000 
     schema_config:
       configs:
       - from: 2020-10-24
