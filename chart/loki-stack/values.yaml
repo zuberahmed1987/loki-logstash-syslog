@@ -7,9 +7,9 @@ loki:
       grpc_server_max_concurrent_streams: 1000
       grpc_server_max_recv_msg_size: 80000000
       grpc_server_max_send_msg_size: 80000000
-      http_server_idle_timeout: 40m
-      http_server_read_timeout: 20m
-      http_server_write_timeout: 20m
+      http_server_idle_timeout: 4m
+      http_server_read_timeout: 2m
+      http_server_write_timeout: 2m
     # existingSecret:
     auth_enabled: false
     tracing:
@@ -26,11 +26,11 @@ loki:
         # the value must be defined as string to be evaluated when secret manifest is being generating
         - '{{ include "loki.fullname" . }}-memberlist'
     ingester:
-      chunk_idle_period: 30
+      chunk_idle_period: 30m
       max_chunk_age: 1h
       chunk_block_size: 262144
       chunk_target_size: 2621440
-      chunk_retain_period: 10m
+      chunk_retain_period: 0s
       chunk_encoding: snappy
       max_transfer_retries: 0
       wal:
@@ -47,7 +47,7 @@ loki:
       max_entries_limit_per_query: 5000
       split_queries_by_interval: 5m
       max_query_parallelism: 5000
-      max_query_series: 100000000
+      max_query_series: 10000
       per_stream_rate_limit: 30MB
       per_stream_rate_limit_burst: 60MB
       ingestion_rate_mb: 10
@@ -59,6 +59,12 @@ loki:
       parallelise_shardable_queries: false
       align_queries_with_step: true
       cache_results: true
+      results_cache:
+        cache:
+          enable_fifocache: true
+          fifocache:
+            max_size_bytes: 250MB
+            ttl: 30m
     querier:
       engine:
         timeout: 15m
