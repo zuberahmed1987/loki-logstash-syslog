@@ -1,12 +1,9 @@
 loki:
   enabled: true
-  replicas: 1
+  replicas: 3
   fullnameOverride: loki
   config:
     server:
-      grpc_server_max_concurrent_streams: 1000
-      grpc_server_max_recv_msg_size: 80000000
-      grpc_server_max_send_msg_size: 80000000
       http_server_idle_timeout: 4m
       http_server_read_timeout: 2m
       http_server_write_timeout: 2m
@@ -17,7 +14,7 @@ loki:
     analytics:
       reporting_enabled: false
     common:
-      replication_factor: 1
+      replication_factor: 3
       ring:
         kvstore:
           store: memberlist
@@ -35,11 +32,6 @@ loki:
       max_transfer_retries: 0
       wal:
         dir: /data/loki/wal
-    ingester_client:
-      grpc_client_config:
-        grpc_compression: snappy
-        max_recv_msg_size: 1048576000
-        max_send_msg_size: 1048576000
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
@@ -67,25 +59,17 @@ loki:
             ttl: 30m
     querier:
       engine:
-        timeout: 15m
+        timeout: 5m
       query_timeout: 5m
       max_concurrent: 5000
     query_scheduler:
       max_outstanding_requests_per_tenant: 5000
     frontend_worker:
-      parallelism: 64
-      grpc_client_config:
-        grpc_compression: snappy
-        max_recv_msg_size: 1048576000
-        max_send_msg_size: 1048576000
+      parallelism: 256
     frontend:
       max_outstanding_per_tenant: 4096
       scheduler_worker_concurrency: 16
       compress_responses: true
-      grpc_client_config:
-        grpc_compression: snappy
-        max_recv_msg_size: 1048576000
-        max_send_msg_size: 1048576000 
     schema_config:
       configs:
       - from: 2020-10-24
