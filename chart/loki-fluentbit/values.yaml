@@ -418,3 +418,12 @@ fluentbit:
             # "kubernetes_pod_name": "pod",
             # "stream": "stream"
           # }
+
+    ## https://docs.fluentbit.io/manual/pipeline/parsers
+    customParsers: |
+      [PARSER]
+          Name docker_no_time
+          Format json
+          Time_Keep Off
+          Time_Key time
+          Time_Format %Y-%m-%dT%H:%M:%S.%L
