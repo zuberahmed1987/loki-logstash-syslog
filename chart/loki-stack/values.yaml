@@ -1,6 +1,7 @@
 loki:
   enabled: true
-  replicas: 3
+  # for filesystem as storage backend keep replica to 1, for aws,gcp and azure make it 3.  
+  replicas: 1
   fullnameOverride: loki
   config:
     server:
@@ -14,7 +15,8 @@ loki:
     analytics:
       reporting_enabled: false
     common:
-      replication_factor: 3
+      # for filesystem as storage backend keep replication_factor to 1, for aws,gcp and azure make it 3.
+      replication_factor: 1
       ring:
         kvstore:
           store: memberlist
