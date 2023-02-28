@@ -234,7 +234,7 @@ loki:
 
 
 fluentbit:
-  enabled: false
+  enabled: true
   fullnameOverride: "loki-fluent-bit"
   testFramework:
     enabled: false
@@ -360,12 +360,12 @@ fluentbit:
           Hard_rename kubernetes_namespace_name namespace
           Hard_rename kubernetes_pod_name pod
           Hard_rename kubernetes_labels labels
-      [FILTER]
-          Name          rewrite_tag
-          Match         kube.*
-          Rule          $namespace ^(argocd)$  argocd.$TAG false
-          Emitter_Name  re_emitted
-          Emitter_Storage.type filesystem
+    #  [FILTER]
+    #      Name          rewrite_tag
+    #      Match         kube.*
+    #      Rule          $namespace ^(argocd)$  argocd.$TAG false
+    #      Emitter_Name  re_emitted
+    #      Emitter_Storage.type filesystem
     ## https://docs.fluentbit.io/manual/pipeline/outputs
     outputs: |
       [OUTPUT]
@@ -373,19 +373,19 @@ fluentbit:
           Match kube.*
           host loki
           port 3100
-          labels cluster=others
-          label_keys $container, $namespace, $pod, $stream
-          auto_kubernetes_labels false
-          line_format json
-      [OUTPUT]
-          Name loki
-          Match argocd.*
-          host loki
-          port 3100
           labels cluster=loki
           label_keys $container, $namespace, $pod, $stream
           auto_kubernetes_labels false
           line_format json
+    #  [OUTPUT]
+    #      Name loki
+    #      Match argocd.*
+    #      host loki
+    #      port 3100
+    #      labels cluster=loki
+    #      label_keys $container, $namespace, $pod, $stream
+    #      auto_kubernetes_labels false
+    #      line_format json
     # label_map_path /fluent-bit/etc/labelmap.json
     # remove_keys kubernetes_container_name,kubernetes_labels,kubernetes_namespace_name,kubernetes_pod_name
 
