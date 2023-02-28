@@ -15,7 +15,7 @@ loki:
     analytics:
       reporting_enabled: false
     common:
-      # for filesystem as storage backend keep replication_factor to 1, for aws,gcp and azure make it 3.
+      # for filesystem as storage backend keep replication_factor to 1, for aws,gcp and azure make it 3
       replication_factor: 1
       ring:
         kvstore:
